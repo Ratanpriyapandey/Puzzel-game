@@ -1,12 +1,13 @@
 {
   "name": "Puzzle Pop",
   "short_name": "Puzzle Pop",
+  "description": "Turn your own photo into a puzzle, then pop it back to life.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#fff4ea",
-  "theme_color": "#e8703f",
+  "theme_color": "#e0703c",
   "icons": [
     { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
   ]
