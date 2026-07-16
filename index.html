@@ -225,8 +225,11 @@
     size=frame.clientWidth; if(!size){requestAnimationFrame(build);return;}
     let done=false; const im=new Image();
     const go=()=>{ if(done)return; done=true; layout(im.naturalWidth||size, im.naturalHeight||size); };
-    im.onload=go; im.onerror=()=>{ if(done)return; done=true; layout(size,size); };
-    im.src=currentImg; if(im.complete&&im.naturalWidth) go();
+    const fail=()=>{ if(done)return; done=true; layout(size,size); };
+    im.src=currentImg;
+    // Decode off the main thread BEFORE building — no half-painted pieces, no decode jank mid-build.
+    if(im.decode) im.decode().then(go).catch(fail);
+    else { im.onload=go; im.onerror=fail; }
   }
   function layout(iw,ih){
     imgW=iw; imgH=ih;
