@@ -34,9 +34,15 @@
     background: radial-gradient(120% 80% at 50% -10%, color-mix(in srgb,var(--accent-2) 22%,var(--page)), var(--page));
     display: flex; align-items: center; justify-content: center; min-height: 100dvh;
     -webkit-user-select: none; user-select: none; }
-  .app { position: relative; width: 100%; max-width: 430px; height: 100vh; max-height: 940px;
+  .app { position: relative; width: 100%; max-width: 430px; height: 100dvh; max-height: 940px;
     background: var(--app); display: flex; flex-direction: column; overflow: hidden; }
   @media (min-width: 470px) { .app { height: min(94vh, 920px); border-radius: 34px; box-shadow: var(--sh-2); } }
+  /* Mobile: let the page scroll when content is taller than the visible viewport
+     (short screens / landscape) instead of clipping the bottom controls. */
+  @media (max-width: 469px) {
+    body { align-items: flex-start; }
+    .app { height: auto; min-height: 100dvh; max-height: none; overflow: visible; }
+  }
 
   .appbar { display: flex; align-items: center; justify-content: space-between; padding: max(16px, env(safe-area-inset-top)) 20px 10px; }
   .brand { display: flex; align-items: center; gap: 9px; font-weight: 800; font-size: 18px; letter-spacing: -.01em; }
@@ -207,7 +213,7 @@
   const MODE_IMG={3:dog(),4:unicorn(),5:HARD_IMG};
 
   let N=3, COUNT=9, currentImg=MODE_IMG[3], size=0, cell=0, ps=0, gap=10;
-  let slotToPiece=[], activeDragId=null;
+  let slotToPiece=[], activeDragId=null, imgW=0, imgH=0;
   const rand=(a,b)=>Math.random()*(b-a)+a;
   function home(s){const c=s%N,r=(s/N)|0;return{x:c*cell+gap/2,y:r*cell+gap/2};}
   function slotCenter(s){const c=s%N,r=(s/N)|0;return{x:(c+.5)*cell,y:(r+.5)*cell};}
@@ -223,6 +229,7 @@
     im.src=currentImg; if(im.complete&&im.naturalWidth) go();
   }
   function layout(iw,ih){
+    imgW=iw; imgH=ih;
     COUNT=N*N; cell=size/N; gap=Math.max(4,Math.round(cell*0.09)); ps=cell-gap;
     // scale the image to COVER the square board (crop, never stretch)
     const scale=Math.max(size/iw, size/ih), coverW=iw*scale, coverH=ih*scale, offX=(size-coverW)/2, offY=(size-coverH)/2;
@@ -238,6 +245,23 @@
       p.style.backgroundPosition=(offX-(col*cell+gap/2))+'px '+(offY-(row*cell+gap/2))+'px';
       p._correct=i; attachDrag(p); board.appendChild(p); place(p,start[i]);}
     ghost.style.backgroundImage=`url("${currentImg}")`; thumb.style.backgroundImage=`url("${currentImg}")`; refresh(); hint.textContent='Drag the picture into place';
+  }
+  // Reposition/resize existing pieces for a new board size WITHOUT reshuffling —
+  // survives orientation change and browser-chrome resize with progress intact.
+  function relayout(){
+    if(!board.children.length){build();return;}
+    size=frame.clientWidth; if(!size)return;
+    cell=size/N; gap=Math.max(4,Math.round(cell*0.09)); ps=cell-gap;
+    const iw=imgW||size, ih=imgH||size;
+    const scale=Math.max(size/iw,size/ih), coverW=iw*scale, coverH=ih*scale, offX=(size-coverW)/2, offY=(size-coverH)/2;
+    for(const s of slotsEl.children) s.style.margin=(gap/2)+'px';
+    for(const p of board.children){
+      const col=p._correct%N, row=(p._correct/N)|0;
+      p.style.width=p.style.height=ps+'px';
+      p.style.backgroundSize=coverW+'px '+coverH+'px';
+      p.style.backgroundPosition=(offX-(col*cell+gap/2))+'px '+(offY-(row*cell+gap/2))+'px';
+      const h=home(p._slot); p.style.transform=`translate(${h.x}px, ${h.y}px)`;
+    }
   }
   function refresh(){
     // authoritative: read each slot's unique occupant, count only exact id===slot matches
@@ -293,7 +317,9 @@
   hintBtn.addEventListener('click',showHint);
   peekBtn.addEventListener('click',()=>{const on=ghost.classList.toggle('show');peekBtn.setAttribute('aria-pressed',String(on));});
   fileInput.addEventListener('change',e=>{const f=e.target.files&&e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{currentImg=r.result;sheetSub.textContent='Your memory, brought back to life.';build();};r.readAsDataURL(f);});
-  let rt;window.addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(build,200);});
+  let rt;const onResize=()=>{clearTimeout(rt);rt=setTimeout(relayout,150);};
+  window.addEventListener('resize',onResize);
+  window.addEventListener('orientationchange',onResize);
   build();
   if("serviceWorker" in navigator){navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){r.unregister();});});}
   if(window.caches){caches.keys().then(function(ks){ks.forEach(function(k){caches.delete(k);});});}
