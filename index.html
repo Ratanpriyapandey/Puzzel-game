@@ -29,10 +29,11 @@
   :root[data-theme="dark"]{--page:#140d09;--app:#211710;--app-2:#2a1d14;--board:#1a120c;--ink:#f6ebe0;--ink-2:#bda593;--line:#ffffff12;--sh-1:0 1px 2px rgba(0,0,0,.4),0 6px 16px -6px rgba(0,0,0,.5);--sh-2:0 30px 70px -28px rgba(0,0,0,.8);}
 
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  html, body { height: 100%; margin: 0; }
+  html, body { height: 100%; margin: 0; overflow: hidden; overscroll-behavior: none; }
   body { font-family: var(--font); color: var(--ink);
     background: radial-gradient(120% 80% at 50% -10%, color-mix(in srgb,var(--accent-2) 22%,var(--page)), var(--page));
-    display: flex; align-items: center; justify-content: center; -webkit-user-select: none; user-select: none; }
+    position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+    -webkit-user-select: none; user-select: none; touch-action: none; }
   .app { position: relative; width: 100%; max-width: 430px; height: 100vh; max-height: 940px;
     background: var(--app); display: flex; flex-direction: column; overflow: hidden; }
   @media (min-width: 470px) { .app { height: min(94vh, 920px); border-radius: 34px; box-shadow: var(--sh-2); } }
@@ -215,16 +216,24 @@
 
   function build(){
     size=frame.clientWidth; if(!size){requestAnimationFrame(build);return;}
+    let done=false; const im=new Image();
+    const go=()=>{ if(done)return; done=true; layout(im.naturalWidth||size, im.naturalHeight||size); };
+    im.onload=go; im.onerror=()=>{ if(done)return; done=true; layout(size,size); };
+    im.src=currentImg; if(im.complete&&im.naturalWidth) go();
+  }
+  function layout(iw,ih){
     COUNT=N*N; cell=size/N; gap=Math.max(4,Math.round(cell*0.09)); ps=cell-gap;
-    const step=100/(N-1), bgSize=(N*100)+'%';
+    // scale the image to COVER the square board (crop, never stretch)
+    const scale=Math.max(size/iw, size/ih), coverW=iw*scale, coverH=ih*scale, offX=(size-coverW)/2, offY=(size-coverH)/2;
     slotsEl.style.gridTemplateColumns=`repeat(${N},1fr)`; slotsEl.style.gridTemplateRows=`repeat(${N},1fr)`;
     slotsEl.innerHTML=''; board.innerHTML=''; confetti.innerHTML=''; frame.classList.remove('done'); app.classList.remove('solved');
     slotToPiece=new Array(COUNT).fill(null);
     for(let i=0;i<COUNT;i++){const s=document.createElement('div');s.className='slot';s.style.margin=(gap/2)+'px';slotsEl.appendChild(s);}
     const start=derange(COUNT);
     for(let i=0;i<COUNT;i++){const col=i%N,row=(i/N)|0,p=document.createElement('div');p.className='piece';
-      p.style.width=p.style.height=ps+'px'; p.style.backgroundImage=`url("${currentImg}")`; p.style.backgroundSize=bgSize+' '+bgSize;
-      p.style.backgroundPosition=`${col*step}% ${row*step}%`;
+      p.style.width=p.style.height=ps+'px'; p.style.backgroundImage=`url("${currentImg}")`;
+      p.style.backgroundSize=coverW+'px '+coverH+'px';
+      p.style.backgroundPosition=(offX-(col*cell+gap/2))+'px '+(offY-(row*cell+gap/2))+'px';
       p._correct=i; attachDrag(p); board.appendChild(p); place(p,start[i]);}
     ghost.style.backgroundImage=`url("${currentImg}")`; thumb.style.backgroundImage=`url("${currentImg}")`; refresh(); hint.textContent='Drag the picture into place';
   }
@@ -233,7 +242,7 @@
   function attachDrag(p){let dg=false,ox=0,oy=0,dx=0,dy=0,hx=0,hy=0;
     p.addEventListener('pointerdown',e=>{if(frame.classList.contains('done'))return;dg=true;p.setPointerCapture(e.pointerId);p.classList.add('dragging');
       ox=e.clientX;oy=e.clientY;dx=0;dy=0;const h=home(p._slot);hx=h.x;hy=h.y;p.style.transform=`translate(${hx}px, ${hy}px) scale(1.07)`;e.preventDefault();});
-    p.addEventListener('pointermove',e=>{if(!dg)return;dx=e.clientX-ox;dy=e.clientY-oy;p.style.transform=`translate(${hx+dx}px, ${hy+dy}px) scale(1.07)`;});
+    p.addEventListener('pointermove',e=>{if(!dg)return;e.preventDefault();dx=e.clientX-ox;dy=e.clientY-oy;p.style.transform=`translate(${hx+dx}px, ${hy+dy}px) scale(1.07)`;});
     const end=()=>{if(!dg)return;dg=false;p.classList.remove('dragging');const cx=hx+dx+ps/2,cy=hy+dy+ps/2,t=nearestSlot(cx,cy),from=p._slot;
       if(t!==from){const occ=slotToPiece[t];if(occ&&occ!==p)place(occ,from);place(p,t);}else{place(p,from);}
       const ok=refresh();if(ok===COUNT){hint.textContent='Perfect.';setTimeout(finish,280);}else{hint.textContent='Nice — keep going';}};
