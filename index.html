@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Puzzle Pop</title>
+<meta name="theme-color" content="#e8703f" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Puzzle Pop" />
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="apple-touch-icon" href="icon.svg" />
+<link rel="icon" href="icon.svg" type="image/svg+xml" />
+<style>
+  :root {
+    --grape:#e8703f; --coral:#f26d6d; --sun:#ffb648; --mint:#f2985a; --sky:#ffd58a; --good:#59b98a;
+    --bg:#fff4ea; --surface:#fffbf6; --ink:#3a2418; --ink-soft:#9c7c68; --line:#f6dfcc;
+    --shadow:0 20px 45px -18px rgba(232,112,63,.45); --radius:26px;
+    --font:ui-rounded,"SF Pro Rounded","Segoe UI",system-ui,"Helvetica Neue",sans-serif;
+  }
+  @media (prefers-color-scheme: dark){:root{--bg:#241510;--surface:#31201a;--ink:#f8ece2;--ink-soft:#cba792;--line:#ffffff14;--shadow:0 22px 55px -20px rgba(0,0,0,.65);}}
+  *{box-sizing:border-box;} html,body{height:100%;}
+  body{margin:0;min-height:100%;font-family:var(--font);color:var(--ink);
+    background:radial-gradient(900px 520px at 15% -8%,color-mix(in srgb,var(--sun) 40%,transparent),transparent 60%),radial-gradient(760px 480px at 92% 2%,color-mix(in srgb,var(--coral) 30%,transparent),transparent 58%),var(--bg);
+    display:flex;justify-content:center;padding:max(18px,env(safe-area-inset-top)) 18px 40px;-webkit-user-select:none;user-select:none;}
+  .wrap{width:100%;max-width:480px;display:flex;flex-direction:column;gap:18px;}
+  header{text-align:center;display:flex;flex-direction:column;gap:6px;}
+  .kicker{align-self:center;font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--grape);background:color-mix(in srgb,var(--grape) 15%,transparent);padding:5px 12px;border-radius:99px;}
+  h1{margin:0;font-size:clamp(26px,7vw,34px);font-weight:800;line-height:1.06;letter-spacing:-.02em;}
+  h1 .pop{color:var(--coral);}
+  .sub{margin:0;color:var(--ink-soft);font-size:14.5px;font-weight:600;}
+  .card{background:var(--surface);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;display:flex;flex-direction:column;gap:14px;border:1px solid var(--line);}
+  .barrow{display:flex;align-items:center;justify-content:space-between;font-weight:700;font-size:13px;color:var(--ink-soft);}
+  .progress{color:var(--good);font-variant-numeric:tabular-nums;}
+  .frame{position:relative;width:100%;aspect-ratio:1/1;border-radius:20px;overflow:hidden;background:color-mix(in srgb,var(--sun) 14%,var(--surface));box-shadow:inset 0 0 70px -24px rgba(255,176,90,.55);touch-action:none;}
+  .slots{position:absolute;inset:0;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);pointer-events:none;}
+  .slot{margin:5px;border-radius:12px;border:2px dashed color-mix(in srgb,var(--grape) 32%,transparent);opacity:.45;}
+  .board{position:absolute;inset:0;}
+  .piece{position:absolute;top:0;left:0;background-image:var(--img);background-size:300% 300%;background-repeat:no-repeat;border-radius:12px;box-shadow:0 7px 16px -6px rgba(90,40,10,.5);cursor:grab;touch-action:none;filter:saturate(.74) brightness(.97);will-change:transform;transition:transform .28s cubic-bezier(.34,1.5,.5,1),box-shadow .15s ease,filter .5s ease,border-radius .4s ease;}
+  .piece.dragging{cursor:grabbing;box-shadow:0 16px 30px -8px rgba(90,40,10,.55);z-index:50;transition:box-shadow .12s ease;}
+  .piece.correct{box-shadow:0 0 0 3px var(--good),0 4px 10px -5px rgba(90,40,10,.4);}
+  .piece.correct::after{content:"✓";position:absolute;top:5px;left:6px;width:18px;height:18px;border-radius:50%;background:var(--good);color:#fff;font-size:12px;font-weight:900;display:grid;place-content:center;box-shadow:0 2px 5px rgba(0,0,0,.3);}
+  .frame.done .piece{filter:saturate(1.16) brightness(1.05);border-radius:4px;box-shadow:0 3px 8px -5px rgba(90,40,10,.4);}
+  .frame.done .piece.correct::after{opacity:0;}
+  .frame.done .slot{opacity:0;transition:opacity .4s;}
+  .frame.done .board{animation:pop .5s cubic-bezier(.34,1.56,.5,1);}
+  @keyframes pop{0%{transform:scale(1)}45%{transform:scale(1.04)}100%{transform:scale(1)}}
+  .refthumb{position:absolute;top:10px;right:10px;width:30%;aspect-ratio:1;border-radius:11px;background-size:cover;background-position:center;z-index:8;box-shadow:0 5px 14px -5px rgba(0,0,0,.55),0 0 0 3px #fff;opacity:1;transition:opacity .3s ease,transform .3s ease;}
+  .refthumb.hidden{opacity:0;transform:scale(.9);pointer-events:none;}
+  .frame.done .refthumb{opacity:0;}
+  .slot.hinting{opacity:1 !important;border-color:var(--sun);animation:slotPulse 1.5s ease;}
+  .piece.hinting{z-index:40;animation:piecePulse 1.5s ease;}
+  @keyframes slotPulse{0%,100%{box-shadow:none}50%{box-shadow:0 0 0 5px color-mix(in srgb,var(--sun) 65%,transparent)}}
+  @keyframes piecePulse{0%,100%{filter:saturate(.74) brightness(.97)}50%{filter:saturate(1.25) brightness(1.15)}}
+  .celebrate{position:absolute;inset:0;display:grid;place-content:center;text-align:center;gap:4px;opacity:0;pointer-events:none;transition:opacity .4s ease .15s;z-index:9;}
+  .frame.done .celebrate{opacity:1;}
+  .celebrate .big{font-size:clamp(24px,7vw,34px);font-weight:800;color:#fff;text-shadow:0 2px 14px rgba(0,0,0,.55);}
+  .celebrate .small{font-size:14px;font-weight:700;color:#fff;text-shadow:0 1px 8px rgba(0,0,0,.6);}
+  .confetti{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:10;}
+  .confetti i{position:absolute;top:-12px;width:10px;height:14px;border-radius:2px;opacity:0;animation:fall var(--cd,1.4s) cubic-bezier(.3,.6,.5,1) forwards;}
+  @keyframes fall{0%{transform:translateY(-10%) rotate(0);opacity:0}12%{opacity:1}100%{transform:translateY(360px) rotate(720deg);opacity:0}}
+  .helpers,.controls{display:flex;gap:10px;}
+  .mini{flex:1;font-family:var(--font);font-size:13.5px;font-weight:800;cursor:pointer;border:none;border-radius:13px;padding:11px 12px;color:var(--ink);background:color-mix(in srgb,var(--sun) 20%,var(--surface));box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--grape) 18%,transparent);transition:transform .12s ease,background .2s ease;}
+  .mini:active{transform:translateY(1px) scale(.99);}
+  .mini[aria-pressed="true"]{background:color-mix(in srgb,var(--sun) 46%,var(--surface));}
+  .mini:focus-visible,button:focus-visible,.filebtn:focus-within{outline:3px solid var(--grape);outline-offset:2px;}
+  button,.filebtn{font-family:var(--font);font-size:15px;font-weight:800;cursor:pointer;border:none;border-radius:15px;padding:14px 16px;transition:transform .12s ease,filter .2s ease;text-align:center;}
+  button:active,.filebtn:active{transform:translateY(1px) scale(.99);}
+  .ghost{flex:1;background:color-mix(in srgb,var(--grape) 10%,transparent);color:var(--grape);box-shadow:inset 0 0 0 2px color-mix(in srgb,var(--grape) 30%,transparent);}
+  .filebtn{flex:1;position:relative;background:var(--coral);color:#fff;box-shadow:0 10px 22px -10px var(--coral);}
+  .filebtn input{position:absolute;inset:0;opacity:0;cursor:pointer;}
+  .foot{text-align:center;color:var(--ink-soft);font-size:12.5px;font-weight:500;line-height:1.6;}
+  .foot b{color:var(--ink);font-weight:800;}
+  @media (prefers-reduced-motion: reduce){.confetti{display:none;}.frame.done .board{animation:none;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <span class="kicker">🧩 Puzzle Pop</span>
+    <h1>Drag the pieces.<br>Bring the memory back to <span class="pop">life.</span></h1>
+    <p class="sub">Drop pieces anywhere — swap them around until every piece fits. ✓ means it's right!</p>
+  </header>
+  <div class="card">
+    <div class="barrow"><span id="hint">Drag pieces to build the picture…</span><span class="progress" id="progress">0 / 9 ✓</span></div>
+    <div class="frame" id="frame">
+      <div class="slots" id="slots"></div>
+      <div class="board" id="board"></div>
+      <div class="refthumb" id="refthumb" aria-hidden="true"></div>
+      <div class="confetti" id="confetti"></div>
+      <div class="celebrate"><div class="big">You made it! 🎉</div><div class="small" id="celebSmall">Memory unlocked</div></div>
+    </div>
+    <div class="helpers">
+      <button class="mini" id="peek" aria-pressed="true">👁 Picture: On</button>
+      <button class="mini" id="hintbtn">💡 Hint</button>
+    </div>
+    <div class="controls">
+      <button class="ghost" id="shuffle">Shuffle</button>
+      <label class="filebtn">📷 Use my own photo<input type="file" id="file" accept="image/*" /></label>
+    </div>
+  </div>
+  <p class="foot">Your photo never leaves this device.<br><b>Puzzle Pop</b> — works offline once installed.</p>
+</div>
+<script>
+  const frame=document.getElementById('frame'),slotsEl=document.getElementById('slots'),board=document.getElementById('board'),
+    confetti=document.getElementById('confetti'),shuffleBtn=document.getElementById('shuffle'),fileInput=document.getElementById('file'),
+    hint=document.getElementById('hint'),progress=document.getElementById('progress'),celebSmall=document.getElementById('celebSmall'),
+    refthumb=document.getElementById('refthumb'),peekBtn=document.getElementById('peek'),hintBtn=document.getElementById('hintbtn');
+  const COLORS=['#e8703f','#f26d6d','#ffb648','#ffd58a','#f2985a','#ff9a76'];
+  const N=3,COUNT=N*N; let currentImg=defaultScene(),size=0,cell=0,ps=0; const slotToPiece=new Array(COUNT).fill(null);
+  function defaultScene(){const svg=`<svg xmlns='http://www.w3.org/2000/svg' width='400' height='400'>
+    <defs><linearGradient id='s' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='%23ffb26b'/><stop offset='.55' stop-color='%23ffd6a0'/><stop offset='1' stop-color='%23ffe9c9'/></linearGradient></defs>
+    <rect width='400' height='400' fill='url(%23s)'/><circle cx='300' cy='120' r='58' fill='%23ff8f4d'/><circle cx='300' cy='120' r='82' fill='%23ff8f4d' opacity='.28'/>
+    <path d='M0 300 Q110 250 210 292 T400 286 V400 H0 Z' fill='%23e07a3f'/><path d='M0 344 Q130 306 250 340 T400 332 V400 H0 Z' fill='%23c9662f'/>
+    <g fill='%23ff6f61'><circle cx='150' cy='160' r='15'/><circle cx='176' cy='176' r='12'/><circle cx='128' cy='178' r='11'/></g>
+    <circle cx='84' cy='120' r='9' fill='%23fff3d6' opacity='.9'/><circle cx='110' cy='100' r='7' fill='%23fff3d6' opacity='.85'/></svg>`;
+    return "data:image/svg+xml;utf8,"+svg.replace(/\n\s*/g,'');}
+  const rand=(a,b)=>Math.random()*(b-a)+a; const inset=()=>(cell-ps)/2;
+  function home(s){const c=s%N,r=s/N|0;return{x:c*cell+inset(),y:r*cell+inset()};}
+  function slotCenter(s){const c=s%N,r=s/N|0;return{x:(c+.5)*cell,y:(r+.5)*cell};}
+  function nearestSlot(px,py){let b=0,bd=Infinity;for(let i=0;i<COUNT;i++){const s=slotCenter(i),d=Math.hypot(px-s.x,py-s.y);if(d<bd){bd=d;b=i;}}return b;}
+  function place(p,s){p._slot=s;slotToPiece[s]=p;const h=home(s);p.style.transform=`translate(${h.x}px, ${h.y}px)`;}
+  function derange(n){let a;do{a=[...Array(n).keys()].sort(()=>Math.random()-.5);}while(a.some((v,i)=>v===i));return a;}
+  function build(){size=frame.clientWidth;if(!size){requestAnimationFrame(build);return;}cell=size/N;ps=cell-10;
+    slotsEl.innerHTML='';board.innerHTML='';confetti.innerHTML='';frame.classList.remove('done');slotToPiece.fill(null);
+    for(let i=0;i<COUNT;i++){const s=document.createElement('div');s.className='slot';slotsEl.appendChild(s);}
+    const start=derange(COUNT);
+    for(let i=0;i<COUNT;i++){const col=i%N,row=i/N|0,p=document.createElement('div');p.className='piece';
+      p.style.width=p.style.height=ps+'px';p.style.setProperty('--img',`url("${currentImg}")`);p.style.backgroundPosition=`${col*50}% ${row*50}%`;
+      p._correct=i;attachDrag(p);board.appendChild(p);place(p,start[i]);}
+    refthumb.style.backgroundImage=`url("${currentImg}")`;refresh();hint.textContent='Drag pieces to build the picture…';}
+  function refresh(){let ok=0;for(const p of board.children){const c=p._slot===p._correct;p.classList.toggle('correct',c);if(c)ok++;}progress.textContent=ok+' / '+COUNT+' ✓';return ok;}
+  function attachDrag(p){let dg=false,ox=0,oy=0,dx=0,dy=0,hx=0,hy=0;
+    p.addEventListener('pointerdown',e=>{if(frame.classList.contains('done'))return;dg=true;p.setPointerCapture(e.pointerId);p.classList.add('dragging');ox=e.clientX;oy=e.clientY;dx=0;dy=0;const h=home(p._slot);hx=h.x;hy=h.y;e.preventDefault();});
+    p.addEventListener('pointermove',e=>{if(!dg)return;dx=e.clientX-ox;dy=e.clientY-oy;p.style.transform=`translate(${hx+dx}px, ${hy+dy}px)`;});
+    const end=()=>{if(!dg)return;dg=false;p.classList.remove('dragging');const cx=hx+dx+ps/2,cy=hy+dy+ps/2,t=nearestSlot(cx,cy),from=p._slot;
+      if(t!==from){const occ=slotToPiece[t];if(occ&&occ!==p)place(occ,from);place(p,t);}else{place(p,from);}
+      const ok=refresh();hint.textContent=ok===COUNT?'There!':'Nice — swap them around!';if(ok===COUNT)setTimeout(finish,260);};
+    p.addEventListener('pointerup',end);p.addEventListener('pointercancel',end);}
+  function showHint(){if(frame.classList.contains('done'))return;const w=[...board.children].find(p=>p._slot!==p._correct);if(!w)return;
+    const slot=slotsEl.children[w._correct];w.classList.add('hinting');slot.classList.add('hinting');hint.textContent='That piece belongs in the glowing spot ✨';
+    setTimeout(()=>{w.classList.remove('hinting');slot.classList.remove('hinting');},1500);}
+  function finish(){frame.classList.add('done');burst();hint.textContent='A memory, brought back. 💛';}
+  function burst(){confetti.innerHTML='';for(let i=0;i<30;i++){const b=document.createElement('i');b.style.left=rand(4,96)+'%';b.style.background=COLORS[i%COLORS.length];
+    b.style.setProperty('--cd',rand(1.1,1.8)+'s');b.style.animationDelay=rand(0,.25)+'s';b.style.transform=`rotate(${rand(0,360)}deg)`;confetti.appendChild(b);}
+    setTimeout(()=>{confetti.innerHTML='';},2100);}
+  shuffleBtn.addEventListener('click',build);hintBtn.addEventListener('click',showHint);
+  peekBtn.addEventListener('click',()=>{const h=refthumb.classList.toggle('hidden');peekBtn.setAttribute('aria-pressed',String(!h));peekBtn.textContent=h?'👁 Picture: Off':'👁 Picture: On';});
+  fileInput.addEventListener('change',e=>{const f=e.target.files&&e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{currentImg=r.result;celebSmall.textContent='Your memory, unlocked';build();};r.readAsDataURL(f);});
+  let rt;window.addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(build,200);});
+  build();
+  if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));}
+</script>
+</body>
+</html>
