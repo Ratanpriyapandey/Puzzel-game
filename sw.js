@@ -9,19 +9,3 @@ self.addEventListener('activate', (e) => {
 self.addEventListener('fetch', (e) => {
   e.respondWith(caches.match(e.request).then((hit) => hit || fetch(e.request)));
 });
-
-📄 manifest.webmanifest:
-
-{
-  "name": "Puzzle Pop",
-  "short_name": "Puzzle Pop",
-  "start_url": "./index.html",
-  "scope": "./",
-  "display": "standalone",
-  "orientation": "portrait",
-  "background_color": "#fff4ea",
-  "theme_color": "#e8703f",
-  "icons": [
-    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
-  ]
-}
