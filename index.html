@@ -210,7 +210,8 @@
     <circle cx='150' cy='288' r='16' fill='%23ffb3d1' opacity='.7'/><circle cx='250' cy='288' r='16' fill='%23ffb3d1' opacity='.7'/>
     <circle cx='188' cy='300' r='4' fill='%235a4a63'/><circle cx='212' cy='300' r='4' fill='%235a4a63'/>
     <path d='M185 312 q15 12 30 0' fill='none' stroke='%235a4a63' stroke-width='4' stroke-linecap='round'/></svg>`);}
-  const HARD_IMG=MODE_IMG_HARD_PLACEHOLDER;
+  // TODO: paste your original Hard-mode JPEG data URI here. Falls back to the unicorn art for now.
+  const HARD_IMG=unicorn();
   const MODE_IMG={3:dog(),4:unicorn(),5:HARD_IMG};
 
   let N=3, COUNT=9, currentImg=MODE_IMG[3], size=0, cell=0, ps=0, gap=10;
