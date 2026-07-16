@@ -29,11 +29,11 @@
   :root[data-theme="dark"]{--page:#140d09;--app:#211710;--app-2:#2a1d14;--board:#1a120c;--ink:#f6ebe0;--ink-2:#bda593;--line:#ffffff12;--sh-1:0 1px 2px rgba(0,0,0,.4),0 6px 16px -6px rgba(0,0,0,.5);--sh-2:0 30px 70px -28px rgba(0,0,0,.8);}
 
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  html, body { height: 100%; margin: 0; overflow: hidden; overscroll-behavior: none; }
+  html, body { margin: 0; min-height: 100%; overscroll-behavior-y: contain; }
   body { font-family: var(--font); color: var(--ink);
     background: radial-gradient(120% 80% at 50% -10%, color-mix(in srgb,var(--accent-2) 22%,var(--page)), var(--page));
-    position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
-    -webkit-user-select: none; user-select: none; touch-action: none; }
+    display: flex; align-items: center; justify-content: center; min-height: 100dvh;
+    -webkit-user-select: none; user-select: none; }
   .app { position: relative; width: 100%; max-width: 430px; height: 100vh; max-height: 940px;
     background: var(--app); display: flex; flex-direction: column; overflow: hidden; }
   @media (min-width: 470px) { .app { height: min(94vh, 920px); border-radius: 34px; box-shadow: var(--sh-2); } }
@@ -66,6 +66,7 @@
     transition: transform .24s cubic-bezier(.34,1.5,.5,1), box-shadow .15s ease, filter .5s ease, border-radius .4s ease; }
   .piece.dragging { cursor: grabbing; box-shadow: 0 22px 38px -10px rgba(50,25,5,.6); z-index: 50; transition: box-shadow .12s ease; }
   .piece.correct { box-shadow: 0 0 0 2.5px var(--good), 0 5px 12px -6px rgba(50,25,5,.4); }
+  .piece:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; z-index: 40; }
   .frame.done .piece { filter: saturate(1.1) brightness(1.03); border-radius: 5px; box-shadow: 0 2px 7px -4px rgba(50,25,5,.4); }
   .frame.done .slot { opacity: 0; transition: opacity .4s; }
   .frame.done .board { animation: pop .55s cubic-bezier(.34,1.56,.5,1); }
@@ -206,7 +207,7 @@
   const MODE_IMG={3:dog(),4:unicorn(),5:HARD_IMG};
 
   let N=3, COUNT=9, currentImg=MODE_IMG[3], size=0, cell=0, ps=0, gap=10;
-  let slotToPiece=[];
+  let slotToPiece=[], activeDragId=null;
   const rand=(a,b)=>Math.random()*(b-a)+a;
   function home(s){const c=s%N,r=(s/N)|0;return{x:c*cell+gap/2,y:r*cell+gap/2};}
   function slotCenter(s){const c=s%N,r=(s/N)|0;return{x:(c+.5)*cell,y:(r+.5)*cell};}
@@ -231,22 +232,52 @@
     for(let i=0;i<COUNT;i++){const s=document.createElement('div');s.className='slot';s.style.margin=(gap/2)+'px';slotsEl.appendChild(s);}
     const start=derange(COUNT);
     for(let i=0;i<COUNT;i++){const col=i%N,row=(i/N)|0,p=document.createElement('div');p.className='piece';
+      p.tabIndex=0; p.setAttribute('role','button'); p.setAttribute('aria-label','Puzzle piece '+(i+1)+' — press arrow keys to move');
       p.style.width=p.style.height=ps+'px'; p.style.backgroundImage=`url("${currentImg}")`;
       p.style.backgroundSize=coverW+'px '+coverH+'px';
       p.style.backgroundPosition=(offX-(col*cell+gap/2))+'px '+(offY-(row*cell+gap/2))+'px';
       p._correct=i; attachDrag(p); board.appendChild(p); place(p,start[i]);}
     ghost.style.backgroundImage=`url("${currentImg}")`; thumb.style.backgroundImage=`url("${currentImg}")`; refresh(); hint.textContent='Drag the picture into place';
   }
-  function refresh(){let ok=0;for(const p of board.children){const c=p._slot===p._correct;p.classList.toggle('correct',c);if(c)ok++;}
+  function refresh(){
+    // authoritative: read each slot's unique occupant, count only exact id===slot matches
+    let ok=0;
+    for(let s=0;s<COUNT;s++){const p=slotToPiece[s]; const c=!!p&&p._correct===s; if(p)p.classList.toggle('correct',c); if(c)ok++;}
     progress.textContent=ok+' / '+COUNT; progress.classList.toggle('complete',ok===COUNT); return ok;}
-  function attachDrag(p){let dg=false,ox=0,oy=0,dx=0,dy=0,hx=0,hy=0;
-    p.addEventListener('pointerdown',e=>{if(frame.classList.contains('done'))return;dg=true;p.setPointerCapture(e.pointerId);p.classList.add('dragging');
-      ox=e.clientX;oy=e.clientY;dx=0;dy=0;const h=home(p._slot);hx=h.x;hy=h.y;p.style.transform=`translate(${hx}px, ${hy}px) scale(1.07)`;e.preventDefault();});
-    p.addEventListener('pointermove',e=>{if(!dg)return;e.preventDefault();dx=e.clientX-ox;dy=e.clientY-oy;p.style.transform=`translate(${hx+dx}px, ${hy+dy}px) scale(1.07)`;});
-    const end=()=>{if(!dg)return;dg=false;p.classList.remove('dragging');const cx=hx+dx+ps/2,cy=hy+dy+ps/2,t=nearestSlot(cx,cy),from=p._slot;
-      if(t!==from){const occ=slotToPiece[t];if(occ&&occ!==p)place(occ,from);place(p,t);}else{place(p,from);}
-      const ok=refresh();if(ok===COUNT){hint.textContent='Perfect.';setTimeout(finish,280);}else{hint.textContent='Nice — keep going';}};
-    p.addEventListener('pointerup',end);p.addEventListener('pointercancel',end);}
+  function commit(p,from,target){ if(target!==from){const occ=slotToPiece[target]; if(occ&&occ!==p) place(occ,from);} place(p,target);
+    const ok=refresh(); if(ok===COUNT){hint.textContent='Perfect.';setTimeout(finish,280);} else {hint.textContent='Nice — keep going';} }
+  function attachDrag(p){
+    let dg=false,pid=null,ox=0,oy=0,dx=0,dy=0,hx=0,hy=0;
+    p.addEventListener('pointerdown',e=>{
+      if(frame.classList.contains('done'))return;
+      if(activeDragId!==null)return;   // one piece at a time — ignore a 2nd finger
+      if(e.button>0)return;            // ignore non-primary mouse buttons
+      dg=true; pid=e.pointerId; activeDragId=pid; p.setPointerCapture(pid); p.classList.add('dragging');
+      ox=e.clientX;oy=e.clientY;dx=0;dy=0;const h=home(p._slot);hx=h.x;hy=h.y;
+      p.style.transform=`translate(${hx}px, ${hy}px) scale(1.07)`; e.preventDefault();
+    });
+    p.addEventListener('pointermove',e=>{
+      if(!dg||e.pointerId!==pid)return;   // ignore secondary pointers
+      e.preventDefault(); dx=e.clientX-ox; dy=e.clientY-oy;
+      p.style.transform=`translate(${hx+dx}px, ${hy+dy}px) scale(1.07)`;
+    });
+    const end=e=>{
+      if(!dg||(e&&e.pointerId!=null&&e.pointerId!==pid))return;
+      dg=false; activeDragId=null; pid=null; p.classList.remove('dragging');
+      const cx=hx+dx+ps/2, cy=hy+dy+ps/2; commit(p, p._slot, nearestSlot(cx,cy));
+    };
+    p.addEventListener('pointerup',end);
+    p.addEventListener('pointercancel',end);
+    p.addEventListener('lostpointercapture',end);  // safety net if the OS steals the touch
+    p.addEventListener('keydown',e=>{
+      if(frame.classList.contains('done'))return;
+      const d={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]}[e.key];
+      if(!d)return; e.preventDefault();
+      const s=p._slot, nc=(s%N)+d[0], nr=((s/N)|0)+d[1];
+      if(nc<0||nc>=N||nr<0||nr>=N)return;
+      commit(p, s, nr*N+nc); p.focus();
+    });
+  }
   function showHint(){if(frame.classList.contains('done'))return;const w=[...board.children].find(p=>p._slot!==p._correct);if(!w)return;
     const slot=slotsEl.children[w._correct];w.classList.add('hinting');slot.classList.add('hinting');hint.textContent='That piece goes in the glowing spot';
     setTimeout(()=>{w.classList.remove('hinting');slot.classList.remove('hinting');},1500);}
